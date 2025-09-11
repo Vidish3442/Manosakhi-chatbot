@@ -21,7 +21,11 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 def chat_with_ai(user_input, speak=False):
-    conversation = [{"role": "user", "parts": [{"text": user_input}]}]
+    # System prompt to always respond in Hindi
+    conversation = [
+        {"role": "system", "parts": [{"text": "आप हमेशा हिंदी में उत्तर दें। उपयोगकर्ता से हिंदी में ही बात करें।"}]},
+        {"role": "user", "parts": [{"text": user_input}]}
+    ]
 
     response = client.models.generate_content(
         model="gemini-2.0-flash",
@@ -30,18 +34,21 @@ def chat_with_ai(user_input, speak=False):
     bot_text = response.text
     st.session_state.chat_history.append({"role": "user", "text": user_input})
     st.session_state.chat_history.append({"role": "bot", "text": bot_text})
+
     if speak:
         tts = gTTS(bot_text, lang="hi")
         tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
         tts.save(tmp_file.name)
         st.audio(tmp_file.name)
 
+# User input
 user_input = st.text_input("कैसा महसूस कर रहे हैं? (हिंदी में लिखें)")
 speak_option = st.checkbox("Bot should speak response")
 
 if st.button("Send") and user_input.strip():
     chat_with_ai(user_input, speak=speak_option)
 
+# Chat styling
 chat_box_style = """
     border-radius: 15px;
     padding: 10px;
@@ -56,7 +63,7 @@ for msg in st.session_state.chat_history:
         st.markdown(
             f"<div style='text-align: right; background-color: #ABEBC6; {chat_box_style} float: right;'>{msg['text']}</div>",
             unsafe_allow_html=True
-        ) 
+        )
     else:
         st.markdown(
             f"<div style='text-align: left; background-color: #FFE5B4; {chat_box_style} float: left;'>{msg['text']}</div>",
