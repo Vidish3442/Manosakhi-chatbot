@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from gtts import gTTS
 import tempfile
 
+# Load environment variables
 load_dotenv()
 api_key = os.getenv("GOOGLE_GENAI_API_KEY")
 if not api_key:
@@ -21,17 +22,17 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 def chat_with_ai(user_input, speak=False):
-    # System prompt to always respond in Hindi
-    conversation = [
-        {"role": "system", "parts": [{"text": "आप हमेशा हिंदी में उत्तर दें। उपयोगकर्ता से हिंदी में ही बात करें।"}]},
-        {"role": "user", "parts": [{"text": user_input}]}
-    ]
+    # Prepend instruction in Hindi to force model response in Hindi
+    user_input_hindi = f"आप हमेशा हिंदी में उत्तर दें। उपयोगकर्ता कहता है: {user_input}"
+
+    conversation = [{"role": "user", "parts": [{"text": user_input_hindi}]}]
 
     response = client.models.generate_content(
         model="gemini-2.0-flash",
         contents=conversation
     )
     bot_text = response.text
+
     st.session_state.chat_history.append({"role": "user", "text": user_input})
     st.session_state.chat_history.append({"role": "bot", "text": bot_text})
 
