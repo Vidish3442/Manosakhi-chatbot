@@ -1,9 +1,9 @@
-import streamlit as st
 from google import genai
 import os
 from dotenv import load_dotenv
 from gtts import gTTS
 import tempfile
+import streamlit as st
 
 # Load environment variables
 load_dotenv()
@@ -21,7 +21,7 @@ client = genai.Client(api_key=api_key)
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-def chat_with_ai(user_input, speak=False):
+def chat_with_ai(user_input):
     # Prepend instruction in Hindi to force model response in Hindi
     user_input_hindi = f"आप हमेशा हिंदी में उत्तर दें। उपयोगकर्ता कहता है: {user_input}"
 
@@ -36,18 +36,17 @@ def chat_with_ai(user_input, speak=False):
     st.session_state.chat_history.append({"role": "user", "text": user_input})
     st.session_state.chat_history.append({"role": "bot", "text": bot_text})
 
-    if speak:
-        tts = gTTS(bot_text, lang="hi")
-        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-        tts.save(tmp_file.name)
-        st.audio(tmp_file.name)
+    # Always speak reply
+    tts = gTTS(bot_text, lang="hi")
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+    tts.save(tmp_file.name)
+    st.audio(tmp_file.name)
 
 # User input
-user_input = st.text_input("कैसा महसूस कर रहे हैं? (हिंदी में लिखें)")
-speak_option = st.checkbox("Bot should speak response")
+user_input = st.text_input("कैसा महसूस कर रहे हैं? (हिंदी या अंग्रेज़ी में लिखें)")
 
 if st.button("Send") and user_input.strip():
-    chat_with_ai(user_input, speak=speak_option)
+    chat_with_ai(user_input)
 
 # Chat styling
 chat_box_style = """
