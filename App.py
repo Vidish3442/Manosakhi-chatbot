@@ -1,9 +1,10 @@
 import streamlit as st
 import os
 import tempfile
+import base64
 import speech_recognition as sr
 from gtts import gTTS
-from google import genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 # Load API key
@@ -18,24 +19,27 @@ st.set_page_config(page_title="🌸 ManoSakhi - Hindi Audio Chatbot 🌸")
 st.title("🌸 ManoSakhi - Hindi Mental Health Chatbot 🌸")
 st.subheader("आपका मानसिक स्वास्थ्य साथी 🤗")
 
-# Init Gemini client
-client = genai.Client(api_key=api_key)
+# Init Gemini
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel("gemini-2.0-flash")
 
 # Save conversation
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Speech-to-Text (STT) → English/Hindi input
-def recognize_speech():
+# Speech-to-Text (uploaded audio file)
+def recognize_speech_from_file(audio_file):
     recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.info("🎤 कृपया बोलें (English या हिंदी में)...")
-        audio = recognizer.listen(source, phrase_time_limit=8)
+    with sr.AudioFile(audio_file) as source:
+        audio = recognizer.record(source)
+
     try:
-        text = recognizer.recognize_google(audio, language="hi-IN")  
+        # First try Hindi
+        text = recognizer.recognize_google(audio, language="hi-IN")
         return text
     except sr.UnknownValueError:
         try:
+            # Fallback to English
             text = recognizer.recognize_google(audio, language="en-IN")
             return text
         except:
@@ -43,14 +47,10 @@ def recognize_speech():
     except sr.RequestError:
         return "स्पीच सर्विस उपलब्ध नहीं है।"
 
-# Gemini Chat + Hindi TTS (auto-play)
+# Gemini Chat + Hindi TTS
 def chat_with_ai(user_text):
-    conversation = [
-        {"role": "user", "parts": [{"text": f"Translate this into Hindi and reply naturally in Hindi: {user_text}"}]}
-    ]
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=conversation
+    response = model.generate_content(
+        f"Translate this into Hindi and reply naturally in Hindi: {user_text}"
     )
     bot_text = response.text
 
@@ -63,11 +63,15 @@ def chat_with_ai(user_text):
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
     tts.save(tmp_file.name)
 
-    # Auto-play with HTML5 <audio autoplay>
+    # Convert to base64 for autoplay
+    with open(tmp_file.name, "rb") as f:
+        audio_bytes = f.read()
+    b64_audio = base64.b64encode(audio_bytes).decode()
+
     st.markdown(
         f"""
-        <audio autoplay>
-            <source src="data:audio/mp3;base64,{open(tmp_file.name,'rb').read().hex()}" type="audio/mp3">
+        <audio autoplay controls>
+            <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
         </audio>
         """,
         unsafe_allow_html=True,
@@ -77,8 +81,12 @@ def chat_with_ai(user_text):
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("🎙️ बोलें और भेजें"):
-        user_input = recognize_speech()
+    uploaded_file = st.file_uploader("🎤 अपनी आवाज़ रिकॉर्ड करें और अपलोड करें", type=["wav", "mp3", "m4a"])
+    if uploaded_file is not None:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+            tmp.write(uploaded_file.read())
+            tmp_path = tmp.name
+        user_input = recognize_speech_from_file(tmp_path)
         st.write(f"🗣️ आपने कहा: {user_input}")
         chat_with_ai(user_input)
 
@@ -100,11 +108,11 @@ chat_box_style = """
 for msg in st.session_state.chat_history:
     if msg["role"] == "user":
         st.markdown(
-            f"<div style='text-align: right; background-color: #ABEBC6; {chat_box_style} float: right;'>{msg['text']}</div>",
+            f"<div style='text-align: right; background-color: #ABEBC6; {chat_box_style}'>{msg['text']}</div>",
             unsafe_allow_html=True
         )
     else:
         st.markdown(
-            f"<div style='text-align: left; background-color: #FFE5B4; {chat_box_style} float: left;'>{msg['text']}</div>",
+            f"<div style='text-align: left; background-color: #FFE5B4; {chat_box_style}'>{msg['text']}</div>",
             unsafe_allow_html=True
         )
