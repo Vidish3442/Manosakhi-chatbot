@@ -1,67 +1,55 @@
-import streamlit as st
+from google import genai
 import os
-import tempfile
-import base64
-from gtts import gTTS
-import google.generativeai as genai
 from dotenv import load_dotenv
+from gtts import gTTS
+import tempfile
+import streamlit as st
 
-# Load API key
+# Load environment variables
 load_dotenv()
 api_key = os.getenv("GOOGLE_GENAI_API_KEY")
 if not api_key:
     st.error("API key not found! Please set GOOGLE_GENAI_API_KEY in your .env file.")
     st.stop()
 
-# Streamlit UI
-st.set_page_config(page_title="🌸 ManoSakhi - Hindi Chatbot 🌸")
+st.set_page_config(page_title="🌸 ManoSakhi - Hindi Mental Health Bot 🌸")
 st.title("🌸 ManoSakhi - Hindi Mental Health Chatbot 🌸")
 st.subheader("आपका मानसिक स्वास्थ्य साथी 🤗")
 
-# Init Gemini
-genai.configure(api_key=api_key)
-model = genai.GenerativeModel("gemini-2.0-flash")
+client = genai.Client(api_key=api_key)
 
-# Save conversation
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# AI Chat + Hindi TTS
-def chat_with_ai(user_text):
-    response = model.generate_content(
-        f"Translate this into Hindi and reply naturally in Hindi: {user_text}"
-    )
-    bot_text = response.text
+def chat_with_ai(user_input):
+    # Force reply in empathetic, natural Hindi
+    user_input_hindi = f"आप हमेशा सरल, स्वाभाविक और सहानुभूतिपूर्ण हिंदी में उत्तर दें। उपयोगकर्ता कहता है: {user_input}"
 
-    # Save chat
-    st.session_state.chat_history.append({"role": "user", "text": user_text})
+    conversation = [{"role": "user", "parts": [{"text": user_input_hindi}]}]
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=conversation
+    )
+    bot_text = response.text.strip()
+
+    # Save chat history
+    st.session_state.chat_history.append({"role": "user", "text": user_input})
     st.session_state.chat_history.append({"role": "bot", "text": bot_text})
 
-    # TTS for bot reply
+    # Speak reply
     tts = gTTS(bot_text, lang="hi")
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
     tts.save(tmp_file.name)
+    st.audio(tmp_file.name)
 
-    # Convert to base64 for autoplay
-    with open(tmp_file.name, "rb") as f:
-        audio_bytes = f.read()
-    b64_audio = base64.b64encode(audio_bytes).decode()
+# User input
+user_input = st.text_input("कैसा महसूस कर रहे हैं? (हिंदी या अंग्रेज़ी में लिखें)")
 
-    st.markdown(
-        f"""
-        <audio autoplay controls>
-            <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
-        </audio>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# ---- Text Input ----
-user_input = st.text_input("✍️ यहाँ लिखें (English या हिंदी में)")
-if st.button("Send ✉️") and user_input.strip():
+if st.button("Send") and user_input.strip():
     chat_with_ai(user_input)
 
-# ---- Chat Bubbles ----
+# Chat styling
 chat_box_style = """
     border-radius: 15px;
     padding: 10px;
@@ -74,28 +62,14 @@ chat_box_style = """
 for msg in st.session_state.chat_history:
     if msg["role"] == "user":
         st.markdown(
-            f"<div style='text-align: right; background-color: #ABEBC6; {chat_box_style}'>{msg['text']}</div>",
+            f"<div style='text-align: right; background-color: #ABEBC6; {chat_box_style} float: right;'>{msg['text']}</div>",
             unsafe_allow_html=True
         )
     else:
         st.markdown(
-            f"<div style='text-align: left; background-color: #FFE5B4; {chat_box_style}'>{msg['text']}</div>",
+            f"<div style='text-align: left; background-color: #FFE5B4; {chat_box_style} float: left;'>{msg['text']}</div>",
             unsafe_allow_html=True
-        )# ---- Chat Bubbles ----
-chat_box_style = """
-    border-radius: 15px;
-    padding: 10px;
-    margin: 5px;
-    width: 60%;
-    color: black;
-    box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
-"""
-
-for msg in st.session_state.chat_history:
-    if msg["role"] == "user":
-        st.markdown(
-            f"<div style='text-align: right; background-color: #ABEBC6; {chat_box_style}'>{msg['text']}</div>",
-            unsafe_allow_html=True
+        )            unsafe_allow_html=True
         )
     else:
         st.markdown(
