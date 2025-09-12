@@ -4,3 +4,4 @@ python-dotenv
 gTTS
 google-generativeai
 gtts
+google-cloud-texttospeech
