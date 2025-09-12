@@ -1,11 +1,10 @@
-import os
-import streamlit as st
-import tempfile
 from dotenv import load_dotenv
-import google.generativeai as genai
-from google.cloud import texttospeech
+from gtts import gTTS
+import tempfile
+import streamlit as st
+import google.generativeai as genai  # ✅ Correct import
 
-# Load .env file
+# Load environment variables
 load_dotenv()
 api_key = os.getenv("GOOGLE_GENAI_API_KEY")
 if not api_key:
@@ -21,42 +20,16 @@ st.set_page_config(page_title="🌸 ManoSakhi - Hindi Mental Health Bot 🌸")
 st.title("🌸 ManoSakhi - Hindi Mental Health Chatbot 🌸")
 st.subheader("आपका मानसिक स्वास्थ्य साथी 🤗")
 
-# Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Function: Speak with Google Cloud TTS
-def speak_hindi(text):
-    client = texttospeech.TextToSpeechClient()
-
-    synthesis_input = texttospeech.SynthesisInput(text=text)
-
-    voice = texttospeech.VoiceSelectionParams(
-        language_code="hi-IN",   # Hindi voice
-        name="hi-IN-Wavenet-A"   # Natural neural WaveNet voice
-    )
-
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.MP3,
-        speaking_rate=1.0,
-        pitch=0.0
-    )
-
-    response = client.synthesize_speech(
-        input=synthesis_input,
-        voice=voice,
-        audio_config=audio_config
-    )
-
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-    with open(tmp_file.name, "wb") as out:
-        out.write(response.audio_content)
-
-    st.audio(tmp_file.name)
-
-# Function: Chat with Gemini
 def chat_with_ai(user_input):
-    user_input_hindi = f"आप हमेशा सरल, स्वाभाविक और सहानुभूतिपूर्ण हिंदी में उत्तर दें। उपयोगकर्ता कहता है: {user_input}"
+    # Force reply in empathetic, natural Hindi + Hinglish
+    user_input_hindi = f"""
+    आप हमेशा सरल, स्वाभाविक और सहानुभूतिपूर्ण भाषा में उत्तर दें।
+    पहले हिंदी (देवनागरी) में लिखें, फिर वही उत्तर Hinglish (English letters में Hindi) में लिखें।
+    उपयोगकर्ता कहता है: {user_input}
+    """
 
     response = model.generate_content(user_input_hindi)
     bot_text = response.text.strip()
@@ -65,8 +38,12 @@ def chat_with_ai(user_input):
     st.session_state.chat_history.append({"role": "user", "text": user_input})
     st.session_state.chat_history.append({"role": "bot", "text": bot_text})
 
-    # Speak reply
-    speak_hindi(bot_text)
+    # Speak only the Hindi part (first line)
+    hindi_line = bot_text.split("\n")[0]
+    tts = gTTS(hindi_line, lang="hi")
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+    tts.save(tmp_file.name)
+    st.audio(tmp_file.name)
 
 # User input
 user_input = st.text_input("कैसा महसूस कर रहे हैं? (हिंदी या अंग्रेज़ी में लिखें)")
@@ -74,7 +51,7 @@ user_input = st.text_input("कैसा महसूस कर रहे है
 if st.button("Send") and user_input.strip():
     chat_with_ai(user_input)
 
-# Chat bubble styling
+# Chat styling
 chat_box_style = """
     border-radius: 15px;
     padding: 10px;
@@ -84,7 +61,7 @@ chat_box_style = """
     box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
 """
 
-# Display chat
+# Display chat bubbles
 for msg in st.session_state.chat_history:
     if msg["role"] == "user":
         st.markdown(
