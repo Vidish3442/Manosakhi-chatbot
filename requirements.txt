@@ -5,5 +5,3 @@ gTTS
 google-generativeai
 gtts
 google-cloud-texttospeech
-SpeechRecognition>=3.8.1
-pyaudio>=0.2.13
