@@ -3,7 +3,7 @@ from gtts import gTTS
 import tempfile
 import streamlit as st
 import google.generativeai as genai  # ✅ Correct import
-
+import os
 # Load environment variables
 load_dotenv()
 api_key = os.getenv("GOOGLE_GENAI_API_KEY")
