@@ -5,3 +5,4 @@ gTTS
 google-generativeai
 gtts
 google-cloud-texttospeech
+huggingface_hub
